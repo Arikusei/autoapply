@@ -1,0 +1,298 @@
+# Конфигурация бота автоотклика.
+# Всё поведение задаётся здесь — код менять не нужно.
+
+# Включённые площадки. Отклик из бота умеет только hh.ru (у него есть
+# официальный API); Habr Career и getmatch по умолчанию работают в режиме
+# «поиск + готовое письмо», отклик по ссылке. Подробности в README.
+providers: [hh, habr, getmatch]
+
+# ---------------------------------------------------------------------------
+# hh.ru — официальный API, полный автоотклик
+# ---------------------------------------------------------------------------
+hh:
+  # Идентификатор резюме, которым откликаемся.
+  # Узнать: python -m autoapply whoami
+  resume_id: null
+  request_delay: 0.5
+
+  # Параметры в params — родные для API hh.ru.
+  #   area: 113 Россия · 1255 Томская обл. · 90 Томск · 1259 Северск · 1 Москва
+  #   professional_role: 96 программист · 10 аналитик · 148 системный аналитик
+  #                      156 BI/дата-аналитик · 150 бизнес-аналитик
+  #                      164 продуктовый аналитик · 165 дата-сайентист
+  #   experience: noExperience · between1And3 · between3And6 · moreThan6
+  searches:
+    - name: Томская область — разработка и аналитика
+      params:
+        text: Python OR аналитик OR автоматизация
+        area: 1255
+        professional_role: [96, 10, 148, 156, 150, 164]
+        experience: [noExperience, between1And3]
+        period: 14
+
+    - name: Удалёнка по России — Python и автоматизация
+      params:
+        text: Python OR n8n OR автоматизация OR интеграция
+        area: 113
+        professional_role: [96, 10, 148, 156]
+        experience: [noExperience, between1And3]
+        schedule: [remote]
+        period: 14
+
+    - name: Удалёнка по России — AI и LLM
+      params:
+        text: LLM OR "искусственный интеллект" OR OpenAI OR RAG OR промпт
+        area: 113
+        professional_role: [96, 10, 156, 165]
+        experience: [noExperience, between1And3]
+        schedule: [remote]
+        period: 14
+
+# ---------------------------------------------------------------------------
+# Habr Career — поиск открыт, отклик только по cookie из браузера
+# ---------------------------------------------------------------------------
+habr:
+  request_delay: 1.0
+  # true + cookie в .env — бот попробует откликаться сам.
+  # Учти: эндпоинт неофициальный и может потребовать капчу.
+  apply_enabled: false
+
+  # Параметры в params — родные для Habr Career.
+  #   qid: уровень (можно словами: intern, junior, middle, senior, lead)
+  #   skills: числовые id (446 Python, 322 SQL, 537 PostgreSQL, 1349 FastAPI)
+  #           найти: /api/frontend/suggestions/skills?term=python
+  #   locations: c_736 Томск, c_678 Москва, c_679 Санкт-Петербург
+  #           найти: /api/frontend/suggestions/locations?term=Томск
+  searches:
+    # Фильтр по навыку точнее текстового поиска: q=Python находит любую
+    # вакансию, где Python просто упомянут, включая чужие роли.
+    - name: Удалёнка — Python
+      params:
+        skills: [446]
+        remote: true
+        qid: [intern, junior, middle]
+
+    - name: Удалёнка — SQL и данные
+      params:
+        skills: [322]
+        remote: true
+        qid: [intern, junior, middle]
+
+    - name: Удалёнка — AI и LLM
+      params:
+        q: LLM OR OpenAI OR RAG OR машинное обучение
+        remote: true
+        qid: [intern, junior, middle]
+
+    - name: Томск — junior/middle
+      params:
+        locations: [c_736]
+        qid: [intern, junior, middle]
+
+# ---------------------------------------------------------------------------
+# getmatch — поиск открыт, официального API отклика нет
+# ---------------------------------------------------------------------------
+getmatch:
+  request_delay: 1.0
+  # Вход на getmatch только по одноразовому коду, API-ключей нет.
+  # По умолчанию бот готовит письмо, а отклик делается вручную по ссылке.
+  apply_enabled: false
+
+  # Параметры в params — родные для getmatch.
+  #   sa: минимальная зарплата (any, 150000, 200000, 250000, 350000)
+  #   pa: период публикации (all, 30d, 7d, 3d, 1d)
+  #   l:  moscow · saints_p · remote · relocate · regions_ru
+  #   se: junior · middle · senior · lead · c_level
+  #   sp: слаги специализаций, см. /api/specializations
+  searches:
+    - name: Удалёнка — Python и данные
+      params:
+        l: remote
+        se: [junior, middle]
+        sp: [python, data_analyst_bi, data_engineering]
+        pa: 30d
+
+    - name: Удалёнка — аналитика и ML
+      params:
+        l: remote
+        se: [junior, middle]
+        sp: [system_analyst, business_analyst, product_analyst, data_science]
+        pa: 30d
+
+# ---------------------------------------------------------------------------
+# Отбор вакансий — одинаков для всех площадок
+# ---------------------------------------------------------------------------
+scoring:
+  # Порог принятия. Вакансии со score ниже уходят в статус skipped.
+  threshold: 6
+
+  # Хотя бы одно из этих слов обязано встретиться, иначе вакансия не по профилю.
+  require_any:
+    - python
+    - sql
+    - n8n
+    - автоматизац
+    - интеграц
+    - api
+    - аналитик
+    - данн
+    - llm
+    - ml
+    - ai
+
+  # Вес за каждое совпадение (слово считается один раз, независимо от частоты).
+  weights:
+    python: 5
+    n8n: 5
+    llm: 4
+    openai: 4
+    claude: 4
+    rag: 4
+    промпт: 3
+    postgresql: 3
+    sql: 3
+    pandas: 3
+    автоматизац: 3
+    интеграц: 3
+    rest api: 3
+    webhook: 3
+    аналитик: 2
+    bitrix: 2
+    amocrm: 2
+    django: 2
+    fastapi: 2
+    docker: 2
+    git: 2
+    supabase: 2
+    vercel: 2
+    numpy: 2
+    sklearn: 2
+    json: 1
+    excel: 1
+    асу тп: 2
+    прототип: 2
+
+  # Стоп-слова по ВСЕМУ тексту вакансии. Сравнение по границам слова.
+  # Держи этот список коротким и однозначным: слово из описания ещё не значит,
+  # что роль чужая. «Интеграция с 1С» — обычная задача автоматизатора, поэтому
+  # 1С отклоняется только в названии (см. reject_title_patterns ниже).
+  blocklist:
+    - unity
+    - unreal
+    - верстальщик
+    - продавец
+    - водитель
+    - курьер
+
+  # Жёсткий отказ по НАЗВАНИЮ вакансии — основной инструмент отбора.
+  # Название говорит, чем роль является, тогда как в описании перечислены
+  # десятки технологий. Сравнение по границам слова: «java» отклонит
+  # «QA (Java)», но не тронет «JavaScript».
+  reject_title_patterns:
+    # уровень выше текущего
+    - senior
+    - сеньор
+    - lead
+    - teamlead
+    - тимлид
+    - руководитель
+    - начальник
+    - директор
+    - главный
+    - архитектор
+    - staff
+    - principal
+    # чужой стек
+    - java
+    - c++
+    - c#
+    - kotlin
+    - swift
+    - golang
+    - go
+    - php
+    - ruby
+    - scala
+    - delphi
+    - 1с
+    # чужая роль: фронтенд и мобильная разработка
+    - фронтенд
+    - frontend
+    - react
+    - angular
+    - vue
+    - вёрстка
+    - ios
+    - android
+    - мобильн
+    # чужая роль: тестирование (в резюме этого трека нет —
+    # убери эти строки, если хочешь получать и QA-вакансии)
+    - тестировщик
+    - тестирования
+    - qa
+    - автотест
+    # чужая роль: инфраструктура, дизайн, менеджмент
+    - devops
+    - sre
+    - администратор
+    - дизайнер
+    - designer
+    - менеджер
+    - manager
+    - рекрутер
+    - embedded
+    - схемотехник
+
+  # Разрешённые уровни в общей шкале: intern, junior, middle, senior, lead.
+  # Провайдеры сами приводят к ней свои значения (hh.ru — требуемый опыт,
+  # Habr — Quialification, getmatch — seniority).
+  allow_seniority: [intern, junior, middle]
+
+  # Дополнительные баллы за условия.
+  bonuses:
+    remote: 2
+    salary_specified: 1
+    area_match: 2
+  # Домашний регион определяется по названию: у площадок разные id регионов.
+  home_area_names: [томск, северск, томская]
+
+# ---------------------------------------------------------------------------
+# Сопроводительные письма
+# ---------------------------------------------------------------------------
+letters:
+  # llm | template
+  mode: llm
+  # openai | anthropic
+  llm_provider: openai
+  model: gpt-4o-mini
+  max_chars: 1500
+  temperature: 0.7
+  # Если LLM недоступна (нет ключа, ошибка, лимит) — использовать шаблон.
+  fallback_to_template: true
+  template: |
+    Здравствуйте!
+
+    Меня заинтересовала вакансия «{title}» в компании {company}.
+
+    Я R&D / AI Developer: автоматизирую бизнес-процессы на Python и n8n,
+    интегрирую REST API и LLM (OpenAI / Claude), проектирую схемы данных
+    на PostgreSQL. Есть инженерный бэкграунд — работал инженером АСУ ТП
+    в проектном институте Роснефти, поэтому быстро разбираюсь в предметной
+    области и пишу понятную техническую документацию.
+
+    Буду рад обсудить задачи подробнее.
+
+    Алексей Зибаев
+    +7 (960) 610-97-46 | zibaevlexa@gmail.com
+    https://github.com/Arikusei
+
+# ---------------------------------------------------------------------------
+# Отправка
+# ---------------------------------------------------------------------------
+sending:
+  # Лимит откликов в сутки суммарно по всем площадкам. У hh.ru свой лимит — 200.
+  daily_limit: 100
+  # Сколько отправлять за один прогон `send`.
+  per_run_limit: 20
+  # Пауза между откликами, сек.
+  delay_between: 4.0
